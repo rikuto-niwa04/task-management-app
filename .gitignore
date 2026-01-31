@@ -1,5 +1,24 @@
-build
-.gradle
-.idea
-out
+# ===== Gradle =====
+.gradle/
+build/
+
+# ===== IDE =====
+.idea/
+.vscode/
+*.iml
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== Logs =====
 *.log
+
+# ===== Spring Boot =====
+/out/
+target/
+
+# ===== Env =====
+.env
+application-*.yml
+application-*.properties
