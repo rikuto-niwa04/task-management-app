@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: task-management-app
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false

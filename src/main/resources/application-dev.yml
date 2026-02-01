@@ -1,0 +1,9 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: jdbc:postgresql://dev-db:5432/task_db
+    username: dev_user
+    password: dev_pass
