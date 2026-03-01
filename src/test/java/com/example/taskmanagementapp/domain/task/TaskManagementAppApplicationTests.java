@@ -1,4 +1,4 @@
-package com.example.task_management_app;
+package com.example.taskmanagementapp.domain.task;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
