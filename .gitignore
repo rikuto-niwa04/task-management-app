@@ -25,3 +25,11 @@ application-*.properties
 
 !application-dev.yml
 !application-dev.properties
+
+# build
+/build/
+/bin/
+/target/
+
+# class files
+*.class

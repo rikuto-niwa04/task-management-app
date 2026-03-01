@@ -1,9 +1,0 @@
-spring:
-  profiles:
-    active: local   # ← ローカル開発時（本番では環境変数で上書き）
-
-  jpa:
-    open-in-view: false
-
-  thymeleaf:
-    cache: false
