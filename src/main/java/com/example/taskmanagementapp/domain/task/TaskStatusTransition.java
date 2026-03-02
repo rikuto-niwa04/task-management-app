@@ -6,24 +6,55 @@ public final class TaskStatusTransition {
 
     public static boolean canTransition(TaskStatus from, TaskStatus to) {
         if (from == null || to == null) return false;
-        //実務想定では同一ステータスへの遷移は無意味なので弾くべきかもしれませんが、ここでは許容します。2026/02/07
-        if (from == to) return true;
 
-        return switch (from) {
-            case TODO -> (to == TaskStatus.IN_PROGRESS);
-            case IN_PROGRESS -> (to == TaskStatus.DONE || to == TaskStatus.TODO);
-            case DONE -> (to == TaskStatus.IN_PROGRESS);
-        };
+        // 同一ステータスへの遷移は許可しない
+        if (from == to) return false;
+
+        switch (from) {
+            case TODO:
+                return to == TaskStatus.IN_PROGRESS;
+
+            case IN_PROGRESS:
+                return to == TaskStatus.DONE || to == TaskStatus.TODO;
+
+            case DONE:
+                return to == TaskStatus.IN_PROGRESS;
+
+            default:
+                return false;
+        }
     }
 
     public static TaskStatus targetStatus(TaskStatus current, TaskOperation op) {
-        if (current == null || op == null) throw new IllegalArgumentException("status/operation is null");
+        if (current == null || op == null) {
+            throw new IllegalArgumentException("status/operation is null");
+        }
 
-        return switch (op) {
-            case START -> TaskStatus.IN_PROGRESS;
-            case COMPLETE -> TaskStatus.DONE;
-            case REVERT -> TaskStatus.TODO;
-            case REOPEN -> TaskStatus.IN_PROGRESS;
-        };
+        switch (current) {
+
+            case TODO:
+                if (op == TaskOperation.START) {
+                    return TaskStatus.IN_PROGRESS;
+                }
+                return null;
+
+            case IN_PROGRESS:
+                if (op == TaskOperation.COMPLETE) {
+                    return TaskStatus.DONE;
+                }
+                if (op == TaskOperation.REVERT) {
+                    return TaskStatus.TODO;
+                }
+                return null;
+
+            case DONE:
+                if (op == TaskOperation.REOPEN) {
+                    return TaskStatus.IN_PROGRESS;
+                }
+                return null;
+
+            default:
+                return null;
+        }
     }
 }
