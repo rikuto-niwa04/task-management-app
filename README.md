@@ -30,6 +30,12 @@ Service層への責務集約
 
 ---
 
+## 📊 E-R図
+
+<img width="1700" height="1000" alt="er-diagram" src="https://github.com/user-attachments/assets/be3eb5f7-c0a8-4211-acb6-ef54d079a012" />
+
+---
+
 ## 🎯 主な機能
 
 ### ✅ タスク管理
