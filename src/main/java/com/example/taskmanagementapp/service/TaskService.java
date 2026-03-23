@@ -48,11 +48,12 @@ public class TaskService {
     //責務：タスク作成＋Todo保存＋CREATEログ記録
     @Transactional
     public Task create(TaskCreateForm form, String actor) {
-        Task t = new Task();
-        t.setTitle(form.getTitle());
-        t.setDescription(form.getDescription());
-        t.setDueDate(form.getDueDate());
-        t.setAssigneeId(form.getAssigneeId());
+        Task t = Task.create(
+        form.getTitle(),
+        form.getDescription(),
+        form.getDueDate(),
+        form.getAssigneeId()
+        );
 
         Task saved = taskRepository.save(t);
 

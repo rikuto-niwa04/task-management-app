@@ -88,4 +88,44 @@ class TaskTest {
             assertTrue(true);
         }
     }
+
+    // タイトルのバリデーション（空白禁止など）
+    @Test
+    void create_shouldSetStatusTodo() {
+        Task t = Task.create("test", "desc", null, null);
+
+        assertEquals(TaskStatus.TODO, t.getStatus());
+    }
+
+    @Test
+    void create_blankTitle_shouldThrowException() {
+        try {
+            Task.create("", "desc", null, null);
+            fail("Expected IllegalArgumentException was not thrown.");
+        } catch (IllegalArgumentException e) {
+            assertEquals("title must not be blank", e.getMessage());
+        }
+    }
+
+    @Test
+    void create_blankSpacesTitle_shouldThrowException() {
+        try {
+            Task.create("   ", "desc", null, null);
+            fail("Expected IllegalArgumentException was not thrown.");
+        } catch (IllegalArgumentException e) {
+            assertEquals("title must not be blank", e.getMessage());
+        }
+    }
+
+    @Test
+    void setTitle_blank_shouldThrowException() {
+        Task t = Task.create("test", "desc", null, null);
+
+        try {
+            t.setTitle("   ");
+            fail("Expected IllegalArgumentException was not thrown.");
+        } catch (IllegalArgumentException e) {
+            assertEquals("title must not be blank", e.getMessage());
+        }
+    }
 }

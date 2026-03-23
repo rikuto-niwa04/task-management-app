@@ -32,12 +32,24 @@ public class Task {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
+    public static Task create(String title, String description, LocalDate dueDate, Long assigneeId) {
+        Task task = new Task();
+        task.setTitle(title);
+        task.setDescription(description);
+        task.setDueDate(dueDate);
+        task.setAssigneeId(assigneeId);
+        task.status = TaskStatus.TODO;
+        return task;
+    }
+
     @PrePersist
     public void prePersist() {
         var now = LocalDateTime.now();
         this.createdAt = now;
         this.updatedAt = now;
-        if (this.status == null) this.status = TaskStatus.TODO; // 作成時TODO固定（仕様）
+        if (this.status == null) {
+            this.status = TaskStatus.TODO;
+        }
     }
 
     @PreUpdate
@@ -49,7 +61,13 @@ public class Task {
     public Long getId() { return id; }
 
     public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
+
+    public void setTitle(String title) {
+        if (title == null || title.isBlank()) {
+            throw new IllegalArgumentException("title must not be blank");
+        }
+        this.title = title;
+    }
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
@@ -71,14 +89,14 @@ public class Task {
         this.status = status;
     }
 
-    //状態遷移のルールはEntity内に実装する
+    // 状態遷移のルールはEntity内に実装する
     public void apply(TaskOperation op) {
-    TaskStatus target = TaskStatusTransition.targetStatus(this.status, op);
+        TaskStatus target = TaskStatusTransition.targetStatus(this.status, op);
 
-    if (!TaskStatusTransition.canTransition(this.status, target)) {
-        throw new IllegalStateException("Invalid transition: " + this.status + " -> " + target + " (op=" + op + ")");
-    }
+        if (!TaskStatusTransition.canTransition(this.status, target)) {
+            throw new IllegalStateException("Invalid transition: " + this.status + " -> " + target + " (op=" + op + ")");
+        }
 
-    this.status = target;
+        this.status = target;
     }
 }
