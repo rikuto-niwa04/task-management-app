@@ -73,7 +73,7 @@ public class TaskController {
             model.addAttribute("auditLogs", taskService.auditLogs(id));
             return "tasks/edit";
         }
-        taskService.updateFields(id, form, actor(auth));
+        taskService.updateFields(id, form, actor(auth), loginUserId(auth), role(auth));
         return "redirect:/tasks/" + id + "/edit";
     }
 
@@ -81,17 +81,25 @@ public class TaskController {
     public String operate(@PathVariable Long id,
                           @RequestParam("op") TaskOperation op,
                           Authentication auth) {
-        taskService.operate(id, op, actor(auth));
+        taskService.operate(id, op, actor(auth), loginUserId(auth), role(auth));
         return "redirect:/tasks/" + id + "/edit";
     }
 
     @PostMapping("/{id}/delete")
     public String delete(@PathVariable Long id, Authentication auth) {
-        taskService.delete(id, actor(auth));
+        taskService.delete(id, actor(auth), loginUserId(auth), role(auth));
         return "redirect:/tasks";
     }
 
     private String actor(Authentication auth) {
         return auth != null ? auth.getName() : "anonymous";
+    }
+
+    private Long loginUserId(Authentication auth) {
+        return 1L;
+    }
+
+    private String role(Authentication auth) {
+        return "ADMIN";
     }
 }
