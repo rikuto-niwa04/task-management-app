@@ -30,11 +30,17 @@ Service層への責務集約
 
 ---
 
-## 📊 E-R図
+## E-R図
 
-<img width="1700" height="1000" alt="er-diagram" src="https://github.com/user-attachments/assets/be3eb5f7-c0a8-4211-acb6-ef54d079a012" />
+![E-R図](docs/images/er-diagram.png)
 
----
+## 設計概要
+
+- users と tasks は 1対多で関連します
+- tasks と task_audit_logs は 1対多で関連します
+- tasks と tags は task_tags を介して多対多で関連します
+- task_audit_logs では、どのユーザーがどのタスクに対して何を行ったかを記録します
+>>>>>>> 0f237c4 (Add ER diagram section to README)
 
 ## 🎯 主な機能
 
