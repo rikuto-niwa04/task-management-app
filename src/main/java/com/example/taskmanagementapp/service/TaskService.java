@@ -48,11 +48,12 @@ public class TaskService {
     //責務：タスク作成＋Todo保存＋CREATEログ記録
     @Transactional
     public Task create(TaskCreateForm form, String actor) {
-        Task t = new Task();
-        t.setTitle(form.getTitle());
-        t.setDescription(form.getDescription());
-        t.setDueDate(form.getDueDate());
-        t.setAssigneeId(form.getAssigneeId());
+        Task t = Task.create(
+        form.getTitle(),
+        form.getDescription(),
+        form.getDueDate(),
+        form.getAssigneeId()
+        );
 
         Task saved = taskRepository.save(t);
 
@@ -68,8 +69,9 @@ public class TaskService {
     //責務：タスク更新＋UPDATEログ記録
     //現状、title必須（空白禁止）のサーバ側保証はここには見えない
     @Transactional
-    public Task updateFields(Long id, TaskUpdateForm form, String actor) {
+    public Task updateFields(Long id, TaskUpdateForm form, String actor, Long loginUserId, String role) {
         Task t = getOrThrow(id);
+        validatePermission(t, loginUserId, role);
 
         // 仕様：DONEでも title/description/due_date/assignee_id は編集可
         t.setTitle(form.getTitle());
@@ -90,8 +92,10 @@ public class TaskService {
 
     //責務：タスクの状態遷移＋STATUS_CHANGEログ記録
     @Transactional
-    public Task operate(Long id, TaskOperation op, String actor) {
+    public Task operate(Long id, TaskOperation op, String actor, Long loginUserId, String role) {
         Task t = getOrThrow(id);
+
+        validatePermission(t, loginUserId, role);
 
         TaskStatus before = t.getStatus();
         //サービスロジックでは、状態遷移のルールはTaskエンティティ内に実装されたapply()を呼び出すだけが理想的。これにより、状態遷移のルールはエンティティ内にカプセル化され、サービス層は単純に操作を指示するだけになる。
@@ -110,8 +114,9 @@ public class TaskService {
 
     //責務：タスク削除＋DELETEログ記録
     @Transactional
-    public void delete(Long id, String actor) {
+    public void delete(Long id, String actor, Long loginUserId, String role) {
         Task t = getOrThrow(id);
+        validatePermission(t, loginUserId, role);
 
         auditLogRepository.save(TaskAuditLog.of(
                 t.getId(),
@@ -122,5 +127,19 @@ public class TaskService {
 
         // 仕様：物理削除
         taskRepository.delete(t);
+    }
+
+    private void validatePermission(Task task, Long loginUserId, String role) {
+        if ("ADMIN".equals(role)) {
+            return;
+        }
+
+        if ("USER".equals(role)) {
+            if (task.getAssigneeId() != null && task.getAssigneeId().equals(loginUserId)) {
+                return;
+            }
+        }
+
+        throw new IllegalStateException("You do not have permission to access this task.");
     }
 }
