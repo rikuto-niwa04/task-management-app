@@ -78,6 +78,7 @@ class TaskServiceTest {
 
         Task saved = taskService.updateFields(1L, form, "tester", 1L, "ADMIN");
 
+        // then
         verify(taskRepository, times(1)).save(existing);
         verify(auditLogRepository, times(1)).save(any(TaskAuditLog.class));
         assertEquals("new title", saved.getTitle());
@@ -96,10 +97,12 @@ class TaskServiceTest {
         taskService.operate(1L, TaskOperation.START, "tester", 1L, "ADMIN");
 
         verify(t, times(1)).apply(TaskOperation.START);
+
         verify(taskRepository, times(1)).save(t);
         verify(auditLogRepository, times(1)).save(any(TaskAuditLog.class));
     }
 
+    // 状態遷移エラーのときは、タスクも監査ログも保存されないことを確認
     @Test
     void operate_invalidTransition_shouldThrow_andNotSaveNorAudit() {
         Task real = new Task();
