@@ -77,8 +77,7 @@ class TaskServiceTest {
         form.setAssigneeId(20L);
 
         // when
-        Task saved = taskService.updateFields(1L, form, "actorB");
-
+        Task saved = taskService.updateFields(1L, form, "actorB", 1L, "ADMIN");
         // then
         verify(taskRepository, times(1)).save(existing);
         verify(auditLogRepository, times(1)).save(any(TaskAuditLog.class));
@@ -98,14 +97,14 @@ class TaskServiceTest {
         when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // when
-        taskService.operate(1L, TaskOperation.COMPLETE, "actorC");
-
+        taskService.operate(1L, TaskOperation.COMPLETE, "actorC", 1L, "ADMIN");
         // then
         verify(t, times(1)).apply(TaskOperation.COMPLETE);
         verify(taskRepository, times(1)).save(t);
         verify(auditLogRepository, times(1)).save(any());
     }
 
+    // 状態遷移エラーのときは、タスクも監査ログも保存されないことを確認
     @Test
     void operate_invalidTransition_shouldThrow_andNotSaveNorAudit() {
         // given
@@ -117,8 +116,7 @@ class TaskServiceTest {
 
         // when
         assertThrows(IllegalStateException.class, () ->
-                taskService.operate(1L, TaskOperation.COMPLETE, "actorD")
-        );
+        taskService.operate(1L, TaskOperation.COMPLETE, "actorD", 1L, "ADMIN"));
 
         // then
         verify(taskRepository, never()).save(any(Task.class));
@@ -132,8 +130,7 @@ class TaskServiceTest {
         when(taskRepository.findById(1L)).thenReturn(Optional.of(t));
 
         // when
-        taskService.delete(1L, "actorE");
-
+        taskService.delete(1L, "actorE", 1L, "ADMIN");
         // then（順序まで見るなら InOrder）
         var inOrder = inOrder(auditLogRepository, taskRepository);
         inOrder.verify(auditLogRepository).save(any(TaskAuditLog.class));
