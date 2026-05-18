@@ -7,6 +7,16 @@
 <body>
 <h1>タスク一覧</h1>
 
+<form method="get" th:action="@{/tasks}">
+    <select name="status">
+        <option value="">全て</option>
+        <option value="TODO" th:selected="${selectedStatus != null and selectedStatus.name() == 'TODO'}">TODO</option>
+        <option value="IN_PROGRESS" th:selected="${selectedStatus != null and selectedStatus.name() == 'IN_PROGRESS'}">IN_PROGRESS</option>
+        <option value="DONE" th:selected="${selectedStatus != null and selectedStatus.name() == 'DONE'}">DONE</option>
+    </select>
+    <button type="submit">検索</button>
+</form>
+
 <p><a th:href="@{/tasks/new}">+ 新規作成</a></p>
 
 <table border="1" cellspacing="0" cellpadding="6">

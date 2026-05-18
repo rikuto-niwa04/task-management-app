@@ -2,6 +2,8 @@ package com.example.taskmanagementapp.web.controller;
 
 import com.example.taskmanagementapp.domain.task.Task;
 import com.example.taskmanagementapp.domain.task.TaskOperation;
+import com.example.taskmanagementapp.domain.task.TaskRepository;
+import com.example.taskmanagementapp.domain.task.TaskStatus;
 import com.example.taskmanagementapp.service.TaskService;
 import com.example.taskmanagementapp.web.form.TaskCreateForm;
 import com.example.taskmanagementapp.web.form.TaskUpdateForm;
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 @Controller
 @RequestMapping("/tasks")
@@ -19,15 +22,11 @@ public class TaskController {
     private final TaskService taskService;
 
     // Constructor injection of TaskService
-    public TaskController(TaskService taskService) {
+    public TaskController(TaskService taskService, TaskRepository taskRepository) {
         this.taskService = taskService;
     }
 
-    @GetMapping
-    public String list(Model model) {
-        model.addAttribute("tasks", taskService.findAll());
-        return "tasks/list";
-    }
+    
 
     @GetMapping("/new")
     public String newForm(Model model) {
@@ -61,6 +60,25 @@ public class TaskController {
         model.addAttribute("form", form);
         model.addAttribute("auditLogs", taskService.auditLogs(id));
         return "tasks/edit";
+    }
+
+    @GetMapping
+    public String list(
+            @RequestParam(required = false) TaskStatus status,
+            Model model) {
+
+        List<Task> tasks;
+
+        if (status != null) {
+            tasks = taskService.findByStatus(status);
+        } else {
+            tasks = taskService.findAll();
+        }
+
+        model.addAttribute("tasks", tasks);
+        model.addAttribute("selectedStatus", status);
+
+        return "tasks/list";
     }
 
     @PostMapping("/{id}")
@@ -104,4 +122,6 @@ public class TaskController {
     private String role(Authentication auth) {
         return "ADMIN";
     }
+
 }
+

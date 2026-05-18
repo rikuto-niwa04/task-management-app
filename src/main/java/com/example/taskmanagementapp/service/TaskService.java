@@ -9,7 +9,7 @@ import com.example.taskmanagementapp.web.form.TaskUpdateForm;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import com.example.taskmanagementapp.domain.task.TaskStatus;
 import java.util.List;
 
 //責務：タスク関連のビジネスロジック全般
@@ -127,6 +127,10 @@ public class TaskService {
 
         // 仕様：物理削除
         taskRepository.delete(t);
+    }
+
+    public List<Task> findByStatus(TaskStatus status) {
+    return taskRepository.findByStatus(status);
     }
 
     private void validatePermission(Task task, Long loginUserId, String role) {
