@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 @Table(name = "tasks")
 public class Task {
 
+    // 仕様：TaskはID、タイトル、説明、状態、期限日、担当者ID、作成日時、更新日時を持つ
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -32,6 +33,7 @@ public class Task {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
+    //自分用：staticにしてインスタンスを生成できなくしておく。仕様違反防止
     public static Task create(String title, String description, LocalDate dueDate, Long assigneeId) {
         Task task = new Task();
         task.setTitle(title);
@@ -44,9 +46,8 @@ public class Task {
 
     @PrePersist
     public void prePersist() {
-        var now = LocalDateTime.now();
-        this.createdAt = now;
-        this.updatedAt = now;
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
         if (this.status == null) {
             this.status = TaskStatus.TODO;
         }
@@ -94,7 +95,7 @@ public class Task {
         TaskStatus target = TaskStatusTransition.targetStatus(this.status, op);
 
         if (!TaskStatusTransition.canTransition(this.status, target)) {
-            throw new IllegalStateException("Invalid transition: " + this.status + " -> " + target + " (op=" + op + ")");
+            throw new IllegalStateException("この状態遷移は不正です: " + this.status + " -> " + target + " (op=" + op + ")");
         }
 
         this.status = target;
