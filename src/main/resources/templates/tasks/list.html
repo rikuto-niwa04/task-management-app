@@ -14,6 +14,12 @@
         <option value="IN_PROGRESS" th:selected="${selectedStatus != null and selectedStatus.name() == 'IN_PROGRESS'}">IN_PROGRESS</option>
         <option value="DONE" th:selected="${selectedStatus != null and selectedStatus.name() == 'DONE'}">DONE</option>
     </select>
+
+    <input type="number"
+           name="assigneeId"
+           placeholder="担当者ID"
+           th:value="${selectedAssigneeId}">
+
     <button type="submit">検索</button>
 </form>
 

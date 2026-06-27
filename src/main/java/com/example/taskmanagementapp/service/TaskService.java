@@ -9,7 +9,7 @@ import com.example.taskmanagementapp.web.form.TaskUpdateForm;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.example.taskmanagementapp.domain.task.TaskStatus;
+
 import java.util.List;
 
 //責務：タスク関連のビジネスロジック全般
@@ -145,5 +145,13 @@ public class TaskService {
         }
 
         throw new IllegalStateException("You do not have permission to access this task.");
+    }
+
+    public List<Task> findByAssigneeId(Long assigneeId) {
+    return taskRepository.findByAssigneeId(assigneeId);
+    }
+
+    public List<Task> findByStatusAndAssigneeId(TaskStatus status, Long assigneeId) {
+        return taskRepository.findByStatusAndAssigneeId(status, assigneeId);
     }
 }

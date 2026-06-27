@@ -65,18 +65,24 @@ public class TaskController {
     @GetMapping
     public String list(
             @RequestParam(required = false) TaskStatus status,
+            @RequestParam(required = false) Long assigneeId,
             Model model) {
 
         List<Task> tasks;
 
-        if (status != null) {
+        if (status != null && assigneeId != null) {
+            tasks = taskService.findByStatusAndAssigneeId(status, assigneeId);
+        } else if (status != null) {
             tasks = taskService.findByStatus(status);
+        } else if (assigneeId != null) {
+            tasks = taskService.findByAssigneeId(assigneeId);
         } else {
             tasks = taskService.findAll();
         }
 
         model.addAttribute("tasks", tasks);
         model.addAttribute("selectedStatus", status);
+        model.addAttribute("selectedAssigneeId", assigneeId);
 
         return "tasks/list";
     }
