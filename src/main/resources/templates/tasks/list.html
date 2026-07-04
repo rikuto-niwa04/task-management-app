@@ -47,5 +47,19 @@
   </tr>
   </tbody>
 </table>
+
+<td>
+    <a th:href="@{/tasks/{id}/edit(id=${t.id})}">編集</a>
+
+    <form th:action="@{/tasks/{id}/delete(id=${t.id})}"
+          method="post"
+          style="display:inline;">
+        <button type="submit"
+                onclick="return confirm('削除しますか？');">
+            削除
+        </button>
+    </form>
+</td>
+
 </body>
 </html>

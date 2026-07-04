@@ -116,7 +116,9 @@ public class TaskService {
     @Transactional
     public void delete(Long id, String actor, Long loginUserId, String role) {
         Task t = getOrThrow(id);
+
         validatePermission(t, loginUserId, role);
+
 
         auditLogRepository.save(TaskAuditLog.of(
                 t.getId(),
