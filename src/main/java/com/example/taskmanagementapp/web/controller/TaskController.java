@@ -6,6 +6,7 @@ import com.example.taskmanagementapp.domain.task.TaskRepository;
 import com.example.taskmanagementapp.domain.task.TaskStatus;
 import com.example.taskmanagementapp.service.TaskService;
 import com.example.taskmanagementapp.web.form.TaskCreateForm;
+import com.example.taskmanagementapp.web.form.TaskSearchForm;
 import com.example.taskmanagementapp.web.form.TaskUpdateForm;
 import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
@@ -63,26 +64,13 @@ public class TaskController {
     }
 
     @GetMapping
-    public String list(
-            @RequestParam(required = false) TaskStatus status,
-            @RequestParam(required = false) Long assigneeId,
-            Model model) {
+    public String list(@ModelAttribute("searchForm") TaskSearchForm searchForm,
+                    Model model) {
 
-        List<Task> tasks;
-
-        if (status != null && assigneeId != null) {
-            tasks = taskService.findByStatusAndAssigneeId(status, assigneeId);
-        } else if (status != null) {
-            tasks = taskService.findByStatus(status);
-        } else if (assigneeId != null) {
-            tasks = taskService.findByAssigneeId(assigneeId);
-        } else {
-            tasks = taskService.findAll();
-        }
+        List<Task> tasks = taskService.search(searchForm);
 
         model.addAttribute("tasks", tasks);
-        model.addAttribute("selectedStatus", status);
-        model.addAttribute("selectedAssigneeId", assigneeId);
+        model.addAttribute("statuses", TaskStatus.values());
 
         return "tasks/list";
     }

@@ -321,7 +321,7 @@ class TaskServiceTest {
                 taskService.delete(1L, "userA", 10L, "USER")
         );
 
-        verify(taskRepository, never()).delete(any());
+        verify(taskRepository, never()).delete(any(Task.class));
         verify(auditLogRepository, never()).save(any());
     }
 

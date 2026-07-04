@@ -9,7 +9,8 @@ import com.example.taskmanagementapp.web.form.TaskUpdateForm;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import com.example.taskmanagementapp.web.form.TaskSearchForm;
+import org.springframework.data.jpa.domain.Specification;
 import java.util.List;
 
 //責務：タスク関連のビジネスロジック全般
@@ -29,9 +30,22 @@ public class TaskService {
 
     //責務：一覧表示用の取得（読み取り専用）
     @Transactional(readOnly = true)
-    public List<Task> findAll() {
-        return taskRepository.findAll();
+    public List<Task> search(TaskSearchForm form) {
+    Specification<Task> spec = (root, query, criteriaBuilder) -> criteriaBuilder.conjunction();
+    if (form.getTitle() != null && !form.getTitle().isBlank()) {
+        spec = spec.and(TaskSpecification.titleContains(form.getTitle()));
     }
+
+    if (form.getStatus() != null) {
+        spec = spec.and(TaskSpecification.hasStatus(form.getStatus()));
+    }
+
+    if (form.getAssigneeId() != null) {
+        spec = spec.and(TaskSpecification.hasAssignee(form.getAssigneeId()));
+    }
+
+    return taskRepository.findAll(spec);
+}
 
     //責務：IDでTask取得＋存在しない場合の例外（読み取り専用）
     @Transactional(readOnly = true)

@@ -7,18 +7,22 @@
 <body>
 <h1>タスク一覧</h1>
 
-<form method="get" th:action="@{/tasks}">
-    <select name="status">
+<form method="get" th:action="@{/tasks}" th:object="${searchForm}">
+    <input type="text"
+           th:field="*{title}"
+           placeholder="タスク名">
+
+    <select th:field="*{status}">
         <option value="">全て</option>
-        <option value="TODO" th:selected="${selectedStatus != null and selectedStatus.name() == 'TODO'}">TODO</option>
-        <option value="IN_PROGRESS" th:selected="${selectedStatus != null and selectedStatus.name() == 'IN_PROGRESS'}">IN_PROGRESS</option>
-        <option value="DONE" th:selected="${selectedStatus != null and selectedStatus.name() == 'DONE'}">DONE</option>
+        <option th:each="s : ${statuses}"
+                th:value="${s}"
+                th:text="${s}">
+        </option>
     </select>
 
     <input type="number"
-           name="assigneeId"
-           placeholder="担当者ID"
-           th:value="${selectedAssigneeId}">
+           th:field="*{assigneeId}"
+           placeholder="担当者ID">
 
     <button type="submit">検索</button>
 </form>
@@ -43,23 +47,24 @@
     <td th:text="${t.status}"></td>
     <td th:text="${t.dueDate != null ? t.dueDate : '期限なし'}"></td>
     <td th:text="${t.assigneeId != null ? t.assigneeId : '未割当'}"></td>
-    <td><a th:href="@{/tasks/{id}/edit(id=${t.id})}">編集</a></td>
+
+    <td>
+      <a th:href="@{/tasks/{id}/edit(id=${t.id})}">編集</a>
+
+      <form th:action="@{/tasks/{id}/delete(id=${t.id})}"
+            method="post"
+            style="display:inline;">
+        <button type="submit"
+                onclick="return confirm('削除しますか？');">
+          削除
+        </button>
+      </form>
+    </td>
   </tr>
   </tbody>
 </table>
 
-<td>
-    <a th:href="@{/tasks/{id}/edit(id=${t.id})}">編集</a>
 
-    <form th:action="@{/tasks/{id}/delete(id=${t.id})}"
-          method="post"
-          style="display:inline;">
-        <button type="submit"
-                onclick="return confirm('削除しますか？');">
-            削除
-        </button>
-    </form>
-</td>
 
 </body>
 </html>
