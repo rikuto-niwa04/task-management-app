@@ -14,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.domain.Sort;
 import java.util.List;
 
 //責務：タスク関連のビジネスロジック全般
@@ -33,7 +34,7 @@ public class TaskService {
 
     //責務：一覧表示用の取得（読み取り専用）
     @Transactional(readOnly = true)
-    public Page<Task> search(TaskSearchForm form, int page, int size) {
+    public Page<Task> search(TaskSearchForm form, int page, int size, String sort) {
         Specification<Task> spec = (root, query, criteriaBuilder) -> criteriaBuilder.conjunction();
         if (form.getTitle() != null && !form.getTitle().isBlank()) {
             spec = spec.and(TaskSpecification.titleContains(form.getTitle()));
@@ -47,7 +48,13 @@ public class TaskService {
             spec = spec.and(TaskSpecification.hasAssignee(form.getAssigneeId()));
         }
 
-        Pageable pageable = PageRequest.of(page, size);
+        String[] parts = sort.split(",");
+
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Direction.fromString(parts[1]), parts[0])
+        );
 
         return taskRepository.findAll(spec, pageable);
     }

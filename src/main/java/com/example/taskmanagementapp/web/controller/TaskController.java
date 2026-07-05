@@ -15,7 +15,6 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.Page;
-import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
 @RequestMapping("/tasks")
@@ -67,13 +66,15 @@ public class TaskController {
     @GetMapping
     public String list(@ModelAttribute("searchForm") TaskSearchForm searchForm,
                     @RequestParam(defaultValue = "0") int page,
+                    @RequestParam(defaultValue = "dueDate,asc") String sort,
                     Model model) {
 
-        Page<Task> taskPage = taskService.search(searchForm, page, 10);
+        Page<Task> taskPage = taskService.search(searchForm, page, 10, sort);
 
         model.addAttribute("tasks", taskPage.getContent());
         model.addAttribute("taskPage", taskPage);
         model.addAttribute("statuses", TaskStatus.values());
+        model.addAttribute("sort", sort);
 
         return "tasks/list";
     }
