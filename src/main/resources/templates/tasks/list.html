@@ -64,6 +64,30 @@
   </tbody>
 </table>
 
+<div th:if="${taskPage.totalPages > 0}">
+  <p>
+    <span th:text="${taskPage.number + 1}"></span>
+    /
+    <span th:text="${taskPage.totalPages}"></span>
+    ページ
+  </p>
+
+  <a th:if="${taskPage.hasPrevious()}"
+     th:href="@{/tasks(page=${taskPage.number - 1},
+                      title=${searchForm.title},
+                      status=${searchForm.status},
+                      assigneeId=${searchForm.assigneeId})}">
+    前へ
+  </a>
+
+  <a th:if="${taskPage.hasNext()}"
+     th:href="@{/tasks(page=${taskPage.number + 1},
+                      title=${searchForm.title},
+                      status=${searchForm.status},
+                      assigneeId=${searchForm.assigneeId})}">
+    次へ
+  </a>
+</div>
 
 
 </body>

@@ -10,6 +10,9 @@ import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.example.taskmanagementapp.web.form.TaskSearchForm;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import java.util.List;
 
@@ -30,22 +33,25 @@ public class TaskService {
 
     //責務：一覧表示用の取得（読み取り専用）
     @Transactional(readOnly = true)
-    public List<Task> search(TaskSearchForm form) {
-    Specification<Task> spec = (root, query, criteriaBuilder) -> criteriaBuilder.conjunction();
-    if (form.getTitle() != null && !form.getTitle().isBlank()) {
-        spec = spec.and(TaskSpecification.titleContains(form.getTitle()));
-    }
+    public Page<Task> search(TaskSearchForm form, int page, int size) {
+        Specification<Task> spec = (root, query, criteriaBuilder) -> criteriaBuilder.conjunction();
+        if (form.getTitle() != null && !form.getTitle().isBlank()) {
+            spec = spec.and(TaskSpecification.titleContains(form.getTitle()));
+        }
 
-    if (form.getStatus() != null) {
-        spec = spec.and(TaskSpecification.hasStatus(form.getStatus()));
-    }
+        if (form.getStatus() != null) {
+            spec = spec.and(TaskSpecification.hasStatus(form.getStatus()));
+        }
 
-    if (form.getAssigneeId() != null) {
-        spec = spec.and(TaskSpecification.hasAssignee(form.getAssigneeId()));
-    }
+        if (form.getAssigneeId() != null) {
+            spec = spec.and(TaskSpecification.hasAssignee(form.getAssigneeId()));
+        }
 
-    return taskRepository.findAll(spec);
-}
+        Pageable pageable = PageRequest.of(page, size);
+
+        return taskRepository.findAll(spec, pageable);
+    }
+    
 
     //責務：IDでTask取得＋存在しない場合の例外（読み取り専用）
     @Transactional(readOnly = true)

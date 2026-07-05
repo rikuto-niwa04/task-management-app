@@ -14,7 +14,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
 @RequestMapping("/tasks")
@@ -65,11 +66,13 @@ public class TaskController {
 
     @GetMapping
     public String list(@ModelAttribute("searchForm") TaskSearchForm searchForm,
+                    @RequestParam(defaultValue = "0") int page,
                     Model model) {
 
-        List<Task> tasks = taskService.search(searchForm);
+        Page<Task> taskPage = taskService.search(searchForm, page, 10);
 
-        model.addAttribute("tasks", tasks);
+        model.addAttribute("tasks", taskPage.getContent());
+        model.addAttribute("taskPage", taskPage);
         model.addAttribute("statuses", TaskStatus.values());
 
         return "tasks/list";
