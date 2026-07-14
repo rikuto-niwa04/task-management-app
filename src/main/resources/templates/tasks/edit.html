@@ -1,97 +1,330 @@
 <!DOCTYPE html>
 <html lang="ja" xmlns:th="http://www.thymeleaf.org">
 <head>
-  <meta charset="UTF-8" />
-  <title>Edit Task</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>タスク編集</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+        crossorigin="anonymous">
 </head>
+
 <body>
-<h1>タスク編集</h1>
+<div class="container py-4">
 
-<p>
-  <a th:href="@{/tasks}">← 一覧へ</a>
-</p>
+  <div class="row justify-content-center">
+    <div class="col-xl-10">
 
-<h2>現在の状態</h2>
-<ul>
-  <li>ID: <span th:text="${task.id}"></span></li>
-  <li>Status: <strong th:text="${task.status}"></strong></li>
-  <li>Due: <span th:text="${task.dueDate != null ? task.dueDate : '期限なし'}"></span></li>
-  <li>Assignee: <span th:text="${task.assigneeId != null ? task.assigneeId : '未割当'}"></span></li>
-</ul>
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">タスク編集</h1>
 
-<h2>内容編集（DONEでも可）</h2>
-<form th:action="@{/tasks/{id}(id=${task.id})}" th:object="${form}" method="post">
-  <div>
-    <label>Title</label><br/>
-    <input type="text" th:field="*{title}" maxlength="120" />
-    <div th:if="${#fields.hasErrors('title')}" th:errors="*{title}"></div>
+        <a th:href="@{/tasks}"
+           class="btn btn-outline-secondary">
+          ← 一覧へ戻る
+        </a>
+      </div>
+
+      <!-- 現在のタスク情報 -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header">
+          現在の状態
+        </div>
+
+        <div class="card-body">
+          <div class="row g-3">
+
+            <div class="col-md-3">
+              <div class="text-secondary small">ID</div>
+              <div class="fw-semibold" th:text="${task.id}"></div>
+            </div>
+
+            <div class="col-md-3">
+              <div class="text-secondary small">ステータス</div>
+
+              <span th:if="${task.status.name() == 'TODO'}"
+                    class="badge bg-secondary">
+                未着手
+              </span>
+
+              <span th:if="${task.status.name() == 'IN_PROGRESS'}"
+                    class="badge bg-primary">
+                対応中
+              </span>
+
+              <span th:if="${task.status.name() == 'DONE'}"
+                    class="badge bg-success">
+                完了
+              </span>
+            </div>
+
+            <div class="col-md-3">
+              <div class="text-secondary small">期限</div>
+              <div class="fw-semibold"
+                   th:text="${task.dueDate != null ? task.dueDate : '期限なし'}">
+              </div>
+            </div>
+
+            <div class="col-md-3">
+              <div class="text-secondary small">担当者</div>
+              <div class="fw-semibold"
+                   th:text="${task.assigneeId != null ? task.assigneeId : '未割当'}">
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- 編集フォーム -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header">
+          内容編集
+        </div>
+
+        <div class="card-body p-4">
+          <form th:action="@{/tasks/{id}(id=${task.id})}"
+                th:object="${form}"
+                method="post">
+
+            <div class="mb-3">
+              <label for="title" class="form-label">
+                タスク名
+                <span class="text-danger">*</span>
+              </label>
+
+              <input type="text"
+                     id="title"
+                     th:field="*{title}"
+                     maxlength="120"
+                     class="form-control"
+                     th:classappend="${#fields.hasErrors('title')} ? 'is-invalid'">
+
+              <div class="invalid-feedback"
+                   th:if="${#fields.hasErrors('title')}"
+                   th:errors="*{title}">
+              </div>
+
+              <div class="form-text">
+                120文字以内で入力してください。
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="description" class="form-label">
+                詳細説明
+              </label>
+
+              <textarea id="description"
+                        th:field="*{description}"
+                        rows="5"
+                        class="form-control"></textarea>
+            </div>
+
+            <div class="mb-3">
+              <label for="dueDate" class="form-label">
+                期限
+              </label>
+
+              <input type="date"
+                     id="dueDate"
+                     th:field="*{dueDate}"
+                     class="form-control">
+            </div>
+
+            <div class="mb-4">
+              <label for="assigneeId" class="form-label">
+                担当者ID
+              </label>
+
+              <input type="number"
+                     id="assigneeId"
+                     th:field="*{assigneeId}"
+                     class="form-control">
+
+              <div class="form-text">
+                未入力の場合は未割当になります。
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-end">
+              <button type="submit"
+                      class="btn btn-primary">
+                保存
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+
+      <!-- 状態変更 -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header">
+          状態変更
+        </div>
+
+        <div class="card-body">
+          <div class="d-flex gap-2 flex-wrap">
+
+            <!-- TODO → IN_PROGRESS -->
+            <form th:if="${task.status.name() == 'TODO'}"
+                  th:action="@{/tasks/{id}/status(id=${task.id})}"
+                  method="post">
+
+              <input type="hidden"
+                     name="operation"
+                     value="START">
+
+              <button type="submit"
+                      class="btn btn-primary">
+                着手
+              </button>
+            </form>
+
+            <!-- IN_PROGRESS → DONE -->
+            <form th:if="${task.status.name() == 'IN_PROGRESS'}"
+                  th:action="@{/tasks/{id}/status(id=${task.id})}"
+                  method="post">
+
+              <input type="hidden"
+                     name="operation"
+                     value="COMPLETE">
+
+              <button type="submit"
+                      class="btn btn-success">
+                完了
+              </button>
+            </form>
+
+            <!-- IN_PROGRESS → TODO -->
+            <form th:if="${task.status.name() == 'IN_PROGRESS'}"
+                  th:action="@{/tasks/{id}/status(id=${task.id})}"
+                  method="post">
+
+              <input type="hidden"
+                     name="operation"
+                     value="REVERT">
+
+              <button type="submit"
+                      class="btn btn-secondary">
+                差し戻し
+              </button>
+            </form>
+
+            <!-- DONE → IN_PROGRESS -->
+            <form th:if="${task.status.name() == 'DONE'}"
+                  th:action="@{/tasks/{id}/status(id=${task.id})}"
+                  method="post">
+
+              <input type="hidden"
+                     name="operation"
+                     value="REOPEN">
+
+              <button type="submit"
+                      class="btn btn-info">
+                再開
+              </button>
+            </form>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- 削除 -->
+      <div class="card border-danger shadow-sm mb-4">
+        <div class="card-header text-bg-danger">
+          危険な操作
+        </div>
+
+        <div class="card-body">
+          <p class="mb-3">
+            このタスクを物理削除します。削除したタスクは復元できません。
+          </p>
+
+          <form th:action="@{/tasks/{id}/delete(id=${task.id})}"
+                method="post"
+                onsubmit="return confirm('本当に削除しますか？（物理削除）');">
+
+            <button type="submit"
+                    class="btn btn-danger">
+              タスクを削除
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- 監査ログ -->
+      <div class="card shadow-sm">
+        <div class="card-header">
+          監査ログ
+        </div>
+
+        <div class="card-body">
+
+          <div class="table-responsive">
+            <table class="table table-striped table-hover table-bordered align-middle mb-0">
+              <thead class="table-dark">
+              <tr>
+                <th>日時</th>
+                <th>イベント</th>
+                <th>実行者</th>
+                <th>詳細</th>
+              </tr>
+              </thead>
+
+              <tbody>
+              <tr th:each="l : ${auditLogs}">
+                <td th:text="${l.occurredAt}"></td>
+
+                <td>
+                  <span th:if="${l.eventType.name() == 'CREATE'}"
+                        class="badge bg-success">
+                    CREATE
+                  </span>
+
+                  <span th:if="${l.eventType.name() == 'UPDATE'}"
+                        class="badge bg-primary">
+                    UPDATE
+                  </span>
+
+                  <span th:if="${l.eventType.name() == 'STATUS_CHANGE'}"
+                        class="badge bg-warning text-dark">
+                    STATUS_CHANGE
+                  </span>
+
+                  <span th:if="${l.eventType.name() == 'DELETE'}"
+                        class="badge bg-danger">
+                    DELETE
+                  </span>
+                </td>
+
+                <td th:text="${l.actor}"></td>
+                <td th:text="${l.detail}"></td>
+              </tr>
+
+              <tr th:if="${#lists.isEmpty(auditLogs)}">
+                <td colspan="4"
+                    class="text-center text-secondary py-4">
+                  監査ログはありません。
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
   </div>
 
-  <div>
-    <label>Description</label><br/>
-    <textarea th:field="*{description}" rows="4" cols="60"></textarea>
-  </div>
+</div>
 
-  <div>
-    <label>Due Date</label><br/>
-    <input type="date" th:field="*{dueDate}" />
-  </div>
-
-  <div>
-    <label>Assignee ID</label><br/>
-    <input type="number" th:field="*{assigneeId}" />
-  </div>
-
-  <button type="submit">保存</button>
-</form>
-
-<h2>状態変更（仕様の操作のみ）</h2>
-
-<form th:action="@{/tasks/{id}/operate(id=${task.id})}" method="post" style="display:inline;">
-  <input type="hidden" name="op" value="START"/>
-  <button type="submit" th:disabled="${task.status.name() != 'TODO'}">着手</button>
-</form>
-
-<form th:action="@{/tasks/{id}/operate(id=${task.id})}" method="post" style="display:inline;">
-  <input type="hidden" name="op" value="COMPLETE"/>
-  <button type="submit" th:disabled="${task.status.name() != 'IN_PROGRESS'}">完了</button>
-</form>
-
-<form th:action="@{/tasks/{id}/operate(id=${task.id})}" method="post" style="display:inline;">
-  <input type="hidden" name="op" value="REVERT"/>
-  <button type="submit" th:disabled="${task.status.name() != 'IN_PROGRESS'}">差し戻し</button>
-</form>
-
-<form th:action="@{/tasks/{id}/operate(id=${task.id})}" method="post" style="display:inline;">
-  <input type="hidden" name="op" value="REOPEN"/>
-  <button type="submit" th:disabled="${task.status.name() != 'DONE'}">再開</button>
-</form>
-
-<h2>削除（物理削除）</h2>
-<form th:action="@{/tasks/{id}/delete(id=${task.id})}" method="post"
-      onsubmit="return confirm('本当に削除しますか？（物理削除）');">
-  <button type="submit">削除</button>
-</form>
-
-<h2>監査ログ</h2>
-<table border="1" cellspacing="0" cellpadding="6">
-  <thead>
-  <tr>
-    <th>When</th>
-    <th>Type</th>
-    <th>Actor</th>
-    <th>Detail</th>
-  </tr>
-  </thead>
-  <tbody>
-  <tr th:each="l : ${auditLogs}">
-    <td th:text="${l.occurredAt}"></td>
-    <td th:text="${l.eventType}"></td>
-    <td th:text="${l.actor}"></td>
-    <td th:text="${l.detail}"></td>
-  </tr>
-  </tbody>
-</table>
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+        crossorigin="anonymous"></script>
 </body>
 </html>
