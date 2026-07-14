@@ -4,5 +4,6 @@ public enum AuditEventType {
     CREATE,
     UPDATE,
     STATUS_CHANGE,
-    DELETE
+    DELETE,
+    AuditLog
 }

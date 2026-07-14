@@ -1,8 +1,8 @@
 package com.example.taskmanagementapp.service;
 
 import com.example.taskmanagementapp.domain.audit.AuditEventType;
-import com.example.taskmanagementapp.domain.audit.TaskAuditLog;
-import com.example.taskmanagementapp.domain.audit.TaskAuditLogRepository;
+import com.example.taskmanagementapp.domain.audit.AuditLog;
+import com.example.taskmanagementapp.domain.audit.AuditLogRepository;
 import com.example.taskmanagementapp.domain.task.*;
 import com.example.taskmanagementapp.web.form.TaskCreateForm;
 import com.example.taskmanagementapp.web.form.TaskUpdateForm;
@@ -25,9 +25,9 @@ import java.util.List;
 public class TaskService {
 
     private final TaskRepository taskRepository;
-    private final TaskAuditLogRepository auditLogRepository;
+    private final AuditLogRepository auditLogRepository;
 
-    public TaskService(TaskRepository taskRepository, TaskAuditLogRepository auditLogRepository) {
+    public TaskService(TaskRepository taskRepository, AuditLogRepository auditLogRepository) {
         this.taskRepository = taskRepository;
         this.auditLogRepository = auditLogRepository;
     }
@@ -68,7 +68,7 @@ public class TaskService {
 
     //責務：履歴表示用の取得処理（読み取り専用）
     @Transactional(readOnly = true)
-    public List<TaskAuditLog> auditLogs(Long taskId) {
+    public List<AuditLog> auditLogs(Long taskId) {
         return auditLogRepository.findByTaskIdOrderByOccurredAtDesc(taskId);
     }
 
@@ -84,7 +84,7 @@ public class TaskService {
 
         Task saved = taskRepository.save(t);
 
-        auditLogRepository.save(TaskAuditLog.of(
+        auditLogRepository.save(AuditLog.of(
                 saved.getId(),
                 AuditEventType.CREATE,
                 actor,
@@ -108,7 +108,7 @@ public class TaskService {
 
         Task saved = taskRepository.save(t);
 
-        auditLogRepository.save(TaskAuditLog.of(
+        auditLogRepository.save(AuditLog.of(
                 saved.getId(),
                 AuditEventType.UPDATE,
                 actor,
@@ -117,36 +117,28 @@ public class TaskService {
         return saved;
     }
 
-    //責務：タスク状態変更＋STATUS_CHANGEログ記録
+    // 責務：タスク状態変更＋STATUS_CHANGEログ記録
     @Transactional
-    public void changeStatus(Long taskId, TaskOperation operation) {
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Task not found: " + taskId
-                ));
+    public Task changeStatus(Long id, TaskOperation operation, String actor, Long loginUserId, String role) {
+        Task task = getOrThrow(id);
+
+        validatePermission(task, loginUserId, role);
+
+        TaskStatus before = task.getStatus();
 
         task.changeStatus(operation);
-    }
 
-    //責務：タスクの状態遷移＋STATUS_CHANGEログ記録
-    @Transactional
-    public Task operate(Long id, TaskOperation op, String actor, Long loginUserId, String role) {
-        Task t = getOrThrow(id);
+        TaskStatus after = task.getStatus();
 
-        validatePermission(t, loginUserId, role);
+        Task saved = taskRepository.save(task);
 
-        TaskStatus before = t.getStatus();
-        //サービスロジックでは、状態遷移のルールはTaskエンティティ内に実装されたapply()を呼び出すだけが理想的。これにより、状態遷移のルールはエンティティ内にカプセル化され、サービス層は単純に操作を指示するだけになる。
-        t.apply(op);
-        TaskStatus after = t.getStatus();
-        Task saved = taskRepository.save(t);
-
-        auditLogRepository.save(TaskAuditLog.of(
+        auditLogRepository.save(AuditLog.of(
                 saved.getId(),
                 AuditEventType.STATUS_CHANGE,
                 actor,
-                "status " + before + " -> " + after + " by " + op
+                "status " + before + " -> " + after + " by " + operation
         ));
+
         return saved;
     }
 
@@ -158,7 +150,7 @@ public class TaskService {
         validatePermission(t, loginUserId, role);
 
 
-        auditLogRepository.save(TaskAuditLog.of(
+        auditLogRepository.save(AuditLog.of(
                 t.getId(),
                 AuditEventType.DELETE,
                 actor,

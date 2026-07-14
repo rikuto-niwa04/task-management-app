@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "task_audit_logs")
-public class TaskAuditLog {
+public class AuditLog {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,8 +35,8 @@ public class TaskAuditLog {
     }
 
     // --- factory ---
-    public static TaskAuditLog of(Long taskId, AuditEventType type, String actor, String detail) {
-        TaskAuditLog log = new TaskAuditLog();
+    public static AuditLog of(Long taskId, AuditEventType type, String actor, String detail) {
+        AuditLog log = new AuditLog();
         log.taskId = taskId;
         log.eventType = type;
         log.actor = actor;

@@ -1,8 +1,8 @@
 package com.example.taskmanagementapp.service;
 
 import com.example.taskmanagementapp.domain.audit.AuditEventType;
-import com.example.taskmanagementapp.domain.audit.TaskAuditLog;
-import com.example.taskmanagementapp.domain.audit.TaskAuditLogRepository;
+import com.example.taskmanagementapp.domain.audit.AuditLog;
+import com.example.taskmanagementapp.domain.audit.AuditLogRepository;
 import com.example.taskmanagementapp.domain.task.*;
 import com.example.taskmanagementapp.web.form.TaskCreateForm;
 import com.example.taskmanagementapp.web.form.TaskUpdateForm;
@@ -21,13 +21,13 @@ import static org.mockito.Mockito.*;
 class TaskServiceTest {
 
     private TaskRepository taskRepository;
-    private TaskAuditLogRepository auditLogRepository;
+    private AuditLogRepository auditLogRepository;
     private TaskService taskService;
 
     @BeforeEach
     void setUp() {
         taskRepository = mock(TaskRepository.class);
-        auditLogRepository = mock(TaskAuditLogRepository.class);
+        auditLogRepository = mock(AuditLogRepository.class);
         taskService = new TaskService(taskRepository, auditLogRepository);
     }
 
@@ -56,7 +56,7 @@ class TaskServiceTest {
 
         verify(taskRepository, times(1)).save(any(Task.class));
 
-        ArgumentCaptor<TaskAuditLog> captor = ArgumentCaptor.forClass(TaskAuditLog.class);
+        ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
         verify(auditLogRepository, times(1)).save(captor.capture());
 
         assertNotNull(captor.getValue());
@@ -80,7 +80,7 @@ class TaskServiceTest {
 
         // then
         verify(taskRepository, times(1)).save(existing);
-        verify(auditLogRepository, times(1)).save(any(TaskAuditLog.class));
+        verify(auditLogRepository, times(1)).save(any(AuditLog.class));
         assertEquals("new title", saved.getTitle());
         assertEquals("new desc", saved.getDescription());
         assertEquals(20L, saved.getAssigneeId());
@@ -94,12 +94,12 @@ class TaskServiceTest {
         when(taskRepository.findById(1L)).thenReturn(Optional.of(t));
         when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        taskService.operate(1L, TaskOperation.START, "tester", 1L, "ADMIN");
+        taskService.changeStatus(1L, TaskOperation.START, "tester", 1L, "ADMIN");
 
         verify(t, times(1)).apply(TaskOperation.START);
 
         verify(taskRepository, times(1)).save(t);
-        verify(auditLogRepository, times(1)).save(any(TaskAuditLog.class));
+        verify(auditLogRepository, times(1)).save(any(AuditLog.class));
     }
 
     // 状態遷移エラーのときは、タスクも監査ログも保存されないことを確認
@@ -112,11 +112,11 @@ class TaskServiceTest {
         doThrow(new IllegalStateException("Invalid transition")).when(t).apply(TaskOperation.COMPLETE);
 
         assertThrows(IllegalStateException.class, () ->
-                taskService.operate(1L, TaskOperation.COMPLETE, "actorD", 1L, "ADMIN")
+                taskService.changeStatus(1L, TaskOperation.COMPLETE, "actorD", 1L, "ADMIN")
         );
 
         verify(taskRepository, never()).save(any(Task.class));
-        verify(auditLogRepository, never()).save(any(TaskAuditLog.class));
+        verify(auditLogRepository, never()).save(any(AuditLog.class));
     }
 
     @Test
@@ -129,10 +129,10 @@ class TaskServiceTest {
         taskService.delete(1L, "tester", 1L, "ADMIN");
 
         var inOrder = inOrder(auditLogRepository, taskRepository);
-        inOrder.verify(auditLogRepository).save(any(TaskAuditLog.class));
+        inOrder.verify(auditLogRepository).save(any(AuditLog.class));
         inOrder.verify(taskRepository).delete(t);
 
-        ArgumentCaptor<TaskAuditLog> captor = ArgumentCaptor.forClass(TaskAuditLog.class);
+        ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
         verify(auditLogRepository).save(captor.capture());
         assertEquals(AuditEventType.DELETE, captor.getValue().getEventType());
     }
@@ -172,7 +172,7 @@ class TaskServiceTest {
         assertEquals(10L, saved.getAssigneeId());
 
         verify(taskRepository, times(1)).save(existing);
-        verify(auditLogRepository, times(1)).save(any(TaskAuditLog.class));
+        verify(auditLogRepository, times(1)).save(any(AuditLog.class));
     }
 
     @Test
@@ -197,7 +197,7 @@ class TaskServiceTest {
 
         assertEquals("You do not have permission to access this task.", ex.getMessage());
         verify(taskRepository, never()).save(any(Task.class));
-        verify(auditLogRepository, never()).save(any(TaskAuditLog.class));
+        verify(auditLogRepository, never()).save(any(AuditLog.class));
     }
 
     @Test
@@ -225,7 +225,7 @@ class TaskServiceTest {
         assertEquals(20L, saved.getAssigneeId());
 
         verify(taskRepository, times(1)).save(existing);
-        verify(auditLogRepository, times(1)).save(any(TaskAuditLog.class));
+        verify(auditLogRepository, times(1)).save(any(AuditLog.class));
     }
 
     //① operate：USERが自分のタスク → OK
@@ -241,12 +241,12 @@ class TaskServiceTest {
         when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // when
-        taskService.operate(1L, TaskOperation.START, "userA", 10L, "USER");
+        taskService.changeStatus(1L, TaskOperation.START, "userA", 10L, "USER");
 
         // then
         verify(t, times(1)).apply(TaskOperation.START);
         verify(taskRepository, times(1)).save(t);
-        verify(auditLogRepository, times(1)).save(any(TaskAuditLog.class));
+        verify(auditLogRepository, times(1)).save(any(AuditLog.class));
     }
 
     //② operate：USERが他人のタスク → 例外
@@ -260,7 +260,7 @@ class TaskServiceTest {
 
         // when & then
         assertThrows(IllegalStateException.class, () ->
-                taskService.operate(1L, TaskOperation.START, "userA", 10L, "USER")
+                taskService.changeStatus(1L, TaskOperation.START, "userA", 10L, "USER")
         );
 
         verify(t, never()).apply(any());
@@ -281,12 +281,12 @@ class TaskServiceTest {
         when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // when
-        taskService.operate(1L, TaskOperation.START, "adminA", 999L, "ADMIN");
+        taskService.changeStatus(1L, TaskOperation.START, "adminA", 999L, "ADMIN");
 
         // then
         verify(t, times(1)).apply(TaskOperation.START);
         verify(taskRepository, times(1)).save(t);
-        verify(auditLogRepository, times(1)).save(any(TaskAuditLog.class));
+        verify(auditLogRepository, times(1)).save(any(AuditLog.class));
     }
 
     //④ delete：USERが自分のタスク → OK
@@ -303,7 +303,7 @@ class TaskServiceTest {
         taskService.delete(1L, "userA", 10L, "USER");
 
         // then
-        verify(auditLogRepository, times(1)).save(any(TaskAuditLog.class));
+        verify(auditLogRepository, times(1)).save(any(AuditLog.class));
         verify(taskRepository, times(1)).delete(t);
     }
 
@@ -339,7 +339,7 @@ class TaskServiceTest {
         taskService.delete(1L, "adminA", 999L, "ADMIN");
 
         // then
-        verify(auditLogRepository, times(1)).save(any(TaskAuditLog.class));
+        verify(auditLogRepository, times(1)).save(any(AuditLog.class));
         verify(taskRepository, times(1)).delete(t);
     }
 }

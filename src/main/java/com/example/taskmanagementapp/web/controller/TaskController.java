@@ -2,7 +2,6 @@ package com.example.taskmanagementapp.web.controller;
 
 import com.example.taskmanagementapp.domain.task.Task;
 import com.example.taskmanagementapp.domain.task.TaskOperation;
-import com.example.taskmanagementapp.domain.task.TaskRepository;
 import com.example.taskmanagementapp.domain.task.TaskStatus;
 import com.example.taskmanagementapp.service.TaskService;
 import com.example.taskmanagementapp.web.form.TaskCreateForm;
@@ -23,7 +22,7 @@ public class TaskController {
     private final TaskService taskService;
 
     // Constructor injection of TaskService
-    public TaskController(TaskService taskService, TaskRepository taskRepository) {
+    public TaskController(TaskService taskService) {
         this.taskService = taskService;
     }
 
@@ -95,14 +94,6 @@ public class TaskController {
         return "redirect:/tasks/" + id + "/edit";
     }
 
-    @PostMapping("/{id}/operate")
-    public String operate(@PathVariable Long id,
-                          @RequestParam("op") TaskOperation op,
-                          Authentication auth) {
-        taskService.operate(id, op, actor(auth), loginUserId(auth), role(auth));
-        return "redirect:/tasks/" + id + "/edit";
-    }
-
     @PostMapping("/{id}/delete")
     public String delete(@PathVariable Long id, Authentication auth) {
         taskService.delete(id, actor(auth), loginUserId(auth), role(auth));
@@ -124,9 +115,10 @@ public class TaskController {
     @PostMapping("/{id}/status")
     public String changeStatus(
             @PathVariable Long id,
-            @RequestParam TaskOperation operation
+            @RequestParam TaskOperation operation,
+            Authentication auth
     ) {
-        taskService.changeStatus(id, operation);
+        taskService.changeStatus(id, operation, actor(auth), loginUserId(auth), role(auth));
 
         return "redirect:/tasks";
     }
