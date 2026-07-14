@@ -100,4 +100,57 @@ public class Task {
 
         this.status = target;
     }
+
+    public void changeStatus(TaskOperation operation) {
+        if (operation == null) {
+            throw new IllegalArgumentException("Operation is required");
+        }
+
+        switch (operation) {
+            case START -> start();
+            case COMPLETE -> complete();
+            case REVERT -> returnToTodo();
+            case REOPEN -> reopen();
+        }
+    }
+
+        private void start() {
+        if (this.status != TaskStatus.TODO) {
+            throw new IllegalStateException(
+                    "TODOのタスクのみ着手できます"
+            );
+        }
+
+        this.status = TaskStatus.IN_PROGRESS;
+    }
+
+    private void complete() {
+        if (this.status != TaskStatus.IN_PROGRESS) {
+            throw new IllegalStateException(
+                    "IN_PROGRESSのタスクのみ完了できます"
+            );
+        }
+
+        this.status = TaskStatus.DONE;
+    }
+
+    private void returnToTodo() {
+        if (this.status != TaskStatus.IN_PROGRESS) {
+            throw new IllegalStateException(
+                    "IN_PROGRESSのタスクのみ差し戻しできます"
+            );
+        }
+
+        this.status = TaskStatus.TODO;
+    }
+
+    private void reopen() {
+        if (this.status != TaskStatus.DONE) {
+            throw new IllegalStateException(
+                    "DONEのタスクのみ再開できます"
+            );
+        }
+
+        this.status = TaskStatus.IN_PROGRESS;
+    }
 }

@@ -121,5 +121,15 @@ public class TaskController {
         return "ADMIN";
     }
 
+    @PostMapping("/{id}/status")
+    public String changeStatus(
+            @PathVariable Long id,
+            @RequestParam TaskOperation operation
+    ) {
+        taskService.changeStatus(id, operation);
+
+        return "redirect:/tasks";
+    }
+
 }
 

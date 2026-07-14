@@ -117,6 +117,17 @@ public class TaskService {
         return saved;
     }
 
+    //責務：タスク状態変更＋STATUS_CHANGEログ記録
+    @Transactional
+    public void changeStatus(Long taskId, TaskOperation operation) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Task not found: " + taskId
+                ));
+
+        task.changeStatus(operation);
+    }
+
     //責務：タスクの状態遷移＋STATUS_CHANGEログ記録
     @Transactional
     public Task operate(Long id, TaskOperation op, String actor, Long loginUserId, String role) {

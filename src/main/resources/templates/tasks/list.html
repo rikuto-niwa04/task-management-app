@@ -69,17 +69,53 @@
     <td th:text="${t.assigneeId != null ? t.assigneeId : '未割当'}"></td>
 
     <td>
-      <a th:href="@{/tasks/{id}/edit(id=${t.id})}">編集</a>
+    <a th:href="@{/tasks/{id}/edit(id=${t.id})}">編集</a>
 
-      <form th:action="@{/tasks/{id}/delete(id=${t.id})}"
-            method="post"
-            style="display:inline;">
-        <button type="submit"
-                onclick="return confirm('削除しますか？');">
-          削除
-        </button>
-      </form>
-    </td>
+    <!-- TODO：着手 -->
+    <form th:if="${t.status.name() == 'TODO'}"
+          th:action="@{/tasks/{id}/status(id=${t.id})}"
+          method="post"
+          style="display:inline;">
+      <input type="hidden" name="operation" value="START">
+      <button type="submit">着手</button>
+    </form>
+
+    <!-- IN_PROGRESS：完了 -->
+    <form th:if="${t.status.name() == 'IN_PROGRESS'}"
+          th:action="@{/tasks/{id}/status(id=${t.id})}"
+          method="post"
+          style="display:inline;">
+      <input type="hidden" name="operation" value="COMPLETE">
+      <button type="submit">完了</button>
+    </form>
+
+    <!-- IN_PROGRESS：差し戻し -->
+    <form th:if="${t.status.name() == 'IN_PROGRESS'}"
+          th:action="@{/tasks/{id}/status(id=${t.id})}"
+          method="post"
+          style="display:inline;">
+      <input type="hidden" name="operation" value="REVERT">
+      <button type="submit">差し戻し</button>
+    </form>
+
+    <!-- DONE：再開 -->
+    <form th:if="${t.status.name() == 'DONE'}"
+          th:action="@{/tasks/{id}/status(id=${t.id})}"
+          method="post"
+          style="display:inline;">
+      <input type="hidden" name="operation" value="REOPEN">
+      <button type="submit">再開</button>
+    </form>
+
+    <form th:action="@{/tasks/{id}/delete(id=${t.id})}"
+          method="post"
+          style="display:inline;">
+      <button type="submit"
+              onclick="return confirm('削除しますか？');">
+        削除
+      </button>
+    </form>
+  </td>
   </tr>
   </tbody>
 </table>
