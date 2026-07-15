@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>権限エラー</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css"
+          rel="stylesheet">
+</head>
+
+<body class="bg-light">
+
+<div class="container mt-5" style="max-width: 700px;">
+
+    <div class="alert alert-danger shadow-sm">
+        <h1 class="h4">この操作を実行する権限がありません</h1>
+
+        <p class="mb-0"
+           th:text="${message}">
+            権限がありません。
+        </p>
+    </div>
+
+    <a th:href="@{/tasks}" class="btn btn-primary">
+        タスク一覧へ戻る
+    </a>
+
+</div>
+
+</body>
+</html>

@@ -3,6 +3,7 @@ package com.example.taskmanagementapp.web.controller;
 import com.example.taskmanagementapp.domain.task.Task;
 import com.example.taskmanagementapp.domain.task.TaskOperation;
 import com.example.taskmanagementapp.domain.task.TaskStatus;
+import com.example.taskmanagementapp.domain.user.UserRepository;
 import com.example.taskmanagementapp.service.TaskService;
 import com.example.taskmanagementapp.web.form.TaskCreateForm;
 import com.example.taskmanagementapp.web.form.TaskSearchForm;
@@ -14,16 +15,21 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.Page;
+import com.example.taskmanagementapp.domain.user.User;
+import com.example.taskmanagementapp.domain.user.UserRepository;
+
 
 @Controller
 @RequestMapping("/tasks")
 public class TaskController {
 
     private final TaskService taskService;
+    private final UserRepository userRepository;
 
     // Constructor injection of TaskService
-    public TaskController(TaskService taskService) {
+    public TaskController(TaskService taskService, UserRepository userRepository) {
         this.taskService = taskService;
+        this.userRepository = userRepository;
     }
 
     
@@ -42,7 +48,8 @@ public class TaskController {
         if (bindingResult.hasErrors()) {
             return "tasks/new";
         }
-        taskService.create(form, actor(auth));
+            User loginUser = loginUser(auth);
+        taskService.create(form, loginUser.getUsername());
         return "redirect:/tasks";
     }
 
@@ -90,26 +97,43 @@ public class TaskController {
             model.addAttribute("auditLogs", taskService.auditLogs(id));
             return "tasks/edit";
         }
-        taskService.updateFields(id, form, actor(auth), loginUserId(auth), role(auth));
+        User loginUser = loginUser(auth);
+
+        taskService.updateFields(
+                id,
+                form,
+                loginUser.getUsername(),
+                loginUser.getId(),
+                loginUser.getRole().name()
+        );
         return "redirect:/tasks/" + id + "/edit";
     }
 
     @PostMapping("/{id}/delete")
     public String delete(@PathVariable Long id, Authentication auth) {
-        taskService.delete(id, actor(auth), loginUserId(auth), role(auth));
+        User loginUser = loginUser(auth);
+
+        taskService.delete(
+                id,
+                loginUser.getUsername(),
+                loginUser.getId(),
+                loginUser.getRole().name()
+        );
+
         return "redirect:/tasks";
     }
 
-    private String actor(Authentication auth) {
-        return auth != null ? auth.getName() : "anonymous";
-    }
+    private User loginUser(Authentication auth) {
+        if (auth == null) {
+            throw new IllegalStateException("Authentication is required.");
+        }
 
-    private Long loginUserId(Authentication auth) {
-        return 1L;
-    }
-
-    private String role(Authentication auth) {
-        return "ADMIN";
+        return userRepository.findByUsername(auth.getName())
+                .orElseThrow(() ->
+                        new IllegalStateException(
+                                "Login user not found: " + auth.getName()
+                        )
+                );
     }
 
     @PostMapping("/{id}/status")
@@ -118,7 +142,15 @@ public class TaskController {
             @RequestParam TaskOperation operation,
             Authentication auth
     ) {
-        taskService.changeStatus(id, operation, actor(auth), loginUserId(auth), role(auth));
+        User loginUser = loginUser(auth);
+
+        taskService.changeStatus(
+                id,
+                operation,
+                loginUser.getUsername(),
+                loginUser.getId(),
+                loginUser.getRole().name()
+        );
 
         return "redirect:/tasks";
     }
