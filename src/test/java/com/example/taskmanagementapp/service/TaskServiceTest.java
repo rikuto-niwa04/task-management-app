@@ -3,20 +3,34 @@ package com.example.taskmanagementapp.service;
 import com.example.taskmanagementapp.domain.audit.AuditEventType;
 import com.example.taskmanagementapp.domain.audit.AuditLog;
 import com.example.taskmanagementapp.domain.audit.AuditLogRepository;
-import com.example.taskmanagementapp.domain.task.*;
+import com.example.taskmanagementapp.domain.task.Task;
+import com.example.taskmanagementapp.domain.task.TaskOperation;
+import com.example.taskmanagementapp.domain.task.TaskRepository;
+import com.example.taskmanagementapp.domain.task.TaskStatus;
 import com.example.taskmanagementapp.web.form.TaskCreateForm;
 import com.example.taskmanagementapp.web.form.TaskUpdateForm;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 
 import java.time.LocalDate;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 class TaskServiceTest {
 
@@ -26,320 +40,572 @@ class TaskServiceTest {
 
     @BeforeEach
     void setUp() {
+        // 本物のDBには接続せず、Repositoryの偽物（モック）を作成
         taskRepository = mock(TaskRepository.class);
         auditLogRepository = mock(AuditLogRepository.class);
-        taskService = new TaskService(taskRepository, auditLogRepository);
+
+        // モックを使って、テスト対象のTaskServiceを生成
+        taskService = new TaskService(
+                taskRepository,
+                auditLogRepository
+        );
     }
 
+    // =========================================================
+    // getOrThrow
+    // =========================================================
+
     @Test
-    void getOrThrow_notFound_shouldThrow() {
-        when(taskRepository.findById(999L)).thenReturn(Optional.empty());
+    void getOrThrow_taskが存在しない場合は例外になる() {
+        // given：ID 999のタスクは存在しない
+        when(taskRepository.findById(999L))
+                .thenReturn(Optional.empty());
 
-        assertThrows(EntityNotFoundException.class, () -> taskService.getOrThrow(999L));
+        // when & then：EntityNotFoundExceptionが発生する
+        EntityNotFoundException exception = assertThrows(
+                EntityNotFoundException.class,
+                () -> taskService.getOrThrow(999L)
+        );
 
-        verify(taskRepository, times(1)).findById(999L);
+        assertEquals(
+                "Task not found: 999",
+                exception.getMessage()
+        );
+
+        verify(taskRepository, times(1))
+                .findById(999L);
+
         verifyNoInteractions(auditLogRepository);
     }
 
+    // =========================================================
+    // create
+    // =========================================================
+
     @Test
-    void create_shouldSaveTask_andWriteCreateAudit() {
+    void create_タスクを保存してCREATE監査ログを記録する() {
+        // given：新規作成フォーム
         TaskCreateForm form = new TaskCreateForm();
-        form.setTitle("t1");
-
-        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> {
-            Task arg = invocation.getArgument(0);
-            setIdByReflection(arg, 1L);
-            return arg;
-        });
-
-        taskService.create(form, "actorA");
-
-        verify(taskRepository, times(1)).save(any(Task.class));
-
-        ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
-        verify(auditLogRepository, times(1)).save(captor.capture());
-
-        assertNotNull(captor.getValue());
-        assertEquals(AuditEventType.CREATE, captor.getValue().getEventType());
-    }
-
-    @Test
-    void updateFields_shouldSaveTask_andWriteUpdateAudit() {
-        Task existing = new Task();
-
-        when(taskRepository.findById(1L)).thenReturn(Optional.of(existing));
-        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        TaskUpdateForm form = new TaskUpdateForm();
-        form.setTitle("new title");
-        form.setDescription("new desc");
+        form.setTitle("テストタスク");
+        form.setDescription("テスト用の説明");
         form.setDueDate(LocalDate.now().plusDays(7));
-        form.setAssigneeId(20L);
+        form.setAssigneeId(10L);
 
-        Task saved = taskService.updateFields(1L, form, "tester", 1L, "ADMIN");
+        /*
+         * taskRepository.save()が呼ばれたら、
+         * 渡されたTaskに仮のIDを設定して、そのまま返す。
+         */
+        when(taskRepository.save(any(Task.class)))
+                .thenAnswer(invocation -> {
+                    Task task = invocation.getArgument(0);
+                    setIdByReflection(task, 1L);
+                    return task;
+                });
 
-        // then
-        verify(taskRepository, times(1)).save(existing);
-        verify(auditLogRepository, times(1)).save(any(AuditLog.class));
-        assertEquals("new title", saved.getTitle());
-        assertEquals("new desc", saved.getDescription());
-        assertEquals(20L, saved.getAssigneeId());
-    }
+        // when
+        Task saved = taskService.create(form, "userA");
 
-    @Test
-    void operate_validTransition_shouldSaveTask_andWriteStatusChangeAudit() {
-        Task t = mock(Task.class);
+        // then：Taskが1回保存されている
+        ArgumentCaptor<Task> taskCaptor =
+                ArgumentCaptor.forClass(Task.class);
 
-        when(t.getStatus()).thenReturn(TaskStatus.IN_PROGRESS, TaskStatus.DONE);
-        when(taskRepository.findById(1L)).thenReturn(Optional.of(t));
-        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        verify(taskRepository, times(1))
+                .save(taskCaptor.capture());
 
-        taskService.changeStatus(1L, TaskOperation.START, "tester", 1L, "ADMIN");
+        Task createdTask = taskCaptor.getValue();
 
-        verify(t, times(1)).apply(TaskOperation.START);
+        assertEquals("テストタスク", createdTask.getTitle());
+        assertEquals("テスト用の説明", createdTask.getDescription());
+        assertEquals(10L, createdTask.getAssigneeId());
 
-        verify(taskRepository, times(1)).save(t);
-        verify(auditLogRepository, times(1)).save(any(AuditLog.class));
-    }
+        // 作成時のstatusは必ずTODO
+        assertEquals(TaskStatus.TODO, createdTask.getStatus());
 
-    // 状態遷移エラーのときは、タスクも監査ログも保存されないことを確認
-    @Test
-    void operate_invalidTransition_shouldThrow_andNotSaveNorAudit() {
-        Task real = new Task();
-        Task t = spy(real);
+        // 戻り値にも仮IDが設定されている
+        assertEquals(1L, saved.getId());
 
-        when(taskRepository.findById(1L)).thenReturn(Optional.of(t));
-        doThrow(new IllegalStateException("Invalid transition")).when(t).apply(TaskOperation.COMPLETE);
+        // CREATE監査ログが保存されている
+        ArgumentCaptor<AuditLog> auditCaptor =
+                ArgumentCaptor.forClass(AuditLog.class);
 
-        assertThrows(IllegalStateException.class, () ->
-                taskService.changeStatus(1L, TaskOperation.COMPLETE, "actorD", 1L, "ADMIN")
+        verify(auditLogRepository, times(1))
+                .save(auditCaptor.capture());
+
+        AuditLog auditLog = auditCaptor.getValue();
+
+        assertNotNull(auditLog);
+        assertEquals(
+                AuditEventType.CREATE,
+                auditLog.getEventType()
         );
-
-        verify(taskRepository, never()).save(any(Task.class));
-        verify(auditLogRepository, never()).save(any(AuditLog.class));
     }
+
+    // =========================================================
+    // updateFields
+    // =========================================================
 
     @Test
-    void delete_shouldWriteDeleteAudit_thenDeleteTask() {
-        Task t = new Task();
-        setIdByReflection(t, 1L);
-
-        when(taskRepository.findById(1L)).thenReturn(Optional.of(t));
-
-        taskService.delete(1L, "tester", 1L, "ADMIN");
-
-        var inOrder = inOrder(auditLogRepository, taskRepository);
-        inOrder.verify(auditLogRepository).save(any(AuditLog.class));
-        inOrder.verify(taskRepository).delete(t);
-
-        ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
-        verify(auditLogRepository).save(captor.capture());
-        assertEquals(AuditEventType.DELETE, captor.getValue().getEventType());
-    }
-
-    private static void setIdByReflection(Task task, Long id) {
-        try {
-            java.lang.reflect.Field f = Task.class.getDeclaredField("id");
-            f.setAccessible(true);
-            f.set(task, id);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Test
-    void updateFields_userCanUpdateOwnTask() {
+    void updateFields_ADMINは他人のタスクを更新できる() {
         // given
         Task existing = new Task();
-        existing.setTitle("old title");
-        existing.setAssigneeId(10L);
+        existing.setTitle("更新前");
+        existing.setDescription("更新前の説明");
+        existing.setAssigneeId(20L);
 
-        when(taskRepository.findById(1L)).thenReturn(Optional.of(existing));
-        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(taskRepository.findById(1L))
+                .thenReturn(Optional.of(existing));
+
+        when(taskRepository.save(any(Task.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         TaskUpdateForm form = new TaskUpdateForm();
-        form.setTitle("new title");
-        form.setDescription("new desc");
-        form.setDueDate(java.time.LocalDate.now().plusDays(3));
+        form.setTitle("更新後");
+        form.setDescription("更新後の説明");
+        form.setDueDate(LocalDate.now().plusDays(5));
+        form.setAssigneeId(20L);
+
+        // when
+        Task saved = taskService.updateFields(
+                1L,
+                form,
+                "adminA",
+                999L,
+                "ADMIN"
+        );
+
+        // then
+        assertEquals("更新後", saved.getTitle());
+        assertEquals("更新後の説明", saved.getDescription());
+        assertEquals(20L, saved.getAssigneeId());
+        assertEquals(form.getDueDate(), saved.getDueDate());
+
+        verify(taskRepository, times(1))
+                .save(existing);
+
+        ArgumentCaptor<AuditLog> auditCaptor =
+                ArgumentCaptor.forClass(AuditLog.class);
+
+        verify(auditLogRepository, times(1))
+                .save(auditCaptor.capture());
+
+        assertEquals(
+                AuditEventType.UPDATE,
+                auditCaptor.getValue().getEventType()
+        );
+    }
+
+    @Test
+    void updateFields_USERは自分のタスクを更新できる() {
+        // given：担当者IDとログインユーザーIDが同じ
+        Task existing = new Task();
+        existing.setTitle("更新前");
+        existing.setAssigneeId(10L);
+
+        when(taskRepository.findById(1L))
+                .thenReturn(Optional.of(existing));
+
+        when(taskRepository.save(any(Task.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        TaskUpdateForm form = new TaskUpdateForm();
+        form.setTitle("更新後");
+        form.setDescription("USERによる更新");
+        form.setDueDate(LocalDate.now().plusDays(3));
         form.setAssigneeId(10L);
 
         // when
-        Task saved = taskService.updateFields(1L, form, "userA", 10L, "USER");
+        Task saved = taskService.updateFields(
+                1L,
+                form,
+                "userA",
+                10L,
+                "USER"
+        );
 
         // then
-        assertEquals("new title", saved.getTitle());
-        assertEquals("new desc", saved.getDescription());
+        assertEquals("更新後", saved.getTitle());
+        assertEquals("USERによる更新", saved.getDescription());
         assertEquals(10L, saved.getAssigneeId());
 
-        verify(taskRepository, times(1)).save(existing);
-        verify(auditLogRepository, times(1)).save(any(AuditLog.class));
+        verify(taskRepository, times(1))
+                .save(existing);
+
+        verify(auditLogRepository, times(1))
+                .save(any(AuditLog.class));
     }
 
     @Test
-    void updateFields_userCannotUpdateOthersTask() {
-        // given
+    void updateFields_USERは他人のタスクを更新できない() {
+        // given：担当者IDとログインユーザーIDが異なる
         Task existing = new Task();
-        existing.setTitle("old title");
-        existing.setAssigneeId(20L); // 自分ではない担当者
+        existing.setTitle("更新前");
+        existing.setAssigneeId(20L);
 
-        when(taskRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(taskRepository.findById(1L))
+                .thenReturn(Optional.of(existing));
 
         TaskUpdateForm form = new TaskUpdateForm();
-        form.setTitle("new title");
-        form.setDescription("new desc");
-        form.setDueDate(java.time.LocalDate.now().plusDays(3));
+        form.setTitle("不正な更新");
+        form.setDescription("更新されない");
+        form.setDueDate(LocalDate.now().plusDays(3));
         form.setAssigneeId(20L);
 
         // when & then
-        IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
-                taskService.updateFields(1L, form, "userA", 10L, "USER")
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> taskService.updateFields(
+                        1L,
+                        form,
+                        "userA",
+                        10L,
+                        "USER"
+                )
         );
 
-        assertEquals("You do not have permission to access this task.", ex.getMessage());
-        verify(taskRepository, never()).save(any(Task.class));
-        verify(auditLogRepository, never()).save(any(AuditLog.class));
+        assertEquals(
+                "You do not have permission to access this task.",
+                exception.getMessage()
+        );
+
+        // 権限エラーなので、Taskも監査ログも保存されない
+        verify(taskRepository, never())
+                .save(any(Task.class));
+
+        verify(auditLogRepository, never())
+                .save(any(AuditLog.class));
+    }
+
+    // =========================================================
+    // changeStatus
+    // =========================================================
+
+    @Test
+    void changeStatus_正常な状態変更ではタスクと監査ログを保存する() {
+        // given
+        Task task = mock(Task.class);
+
+        /*
+         * changeStatus実行前はTODO、
+         * changeStatus実行後はIN_PROGRESSとして返す。
+         */
+        when(task.getStatus())
+                .thenReturn(
+                        TaskStatus.TODO,
+                        TaskStatus.IN_PROGRESS
+                );
+
+        when(taskRepository.findById(1L))
+                .thenReturn(Optional.of(task));
+
+        when(taskRepository.save(any(Task.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // when：TODOからIN_PROGRESSへの着手操作
+        taskService.changeStatus(
+                1L,
+                TaskOperation.START,
+                "adminA",
+                999L,
+                "ADMIN"
+        );
+
+        // then：Task.changeStatus()が呼ばれている
+        verify(task, times(1))
+                .changeStatus(TaskOperation.START);
+
+        verify(taskRepository, times(1))
+                .save(task);
+
+        ArgumentCaptor<AuditLog> auditCaptor =
+                ArgumentCaptor.forClass(AuditLog.class);
+
+        verify(auditLogRepository, times(1))
+                .save(auditCaptor.capture());
+
+        assertEquals(
+                AuditEventType.STATUS_CHANGE,
+                auditCaptor.getValue().getEventType()
+        );
     }
 
     @Test
-    void updateFields_adminCanUpdateOthersTask() {
-        // given
-        Task existing = new Task();
-        existing.setTitle("old title");
-        existing.setAssigneeId(20L); // 他人のタスク
+    void changeStatus_不正な状態変更では例外になり保存しない() {
+        // given：実物Taskをspy化
+        Task realTask = new Task();
+        Task task = spy(realTask);
 
-        when(taskRepository.findById(1L)).thenReturn(Optional.of(existing));
-        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(taskRepository.findById(1L))
+                .thenReturn(Optional.of(task));
 
-        TaskUpdateForm form = new TaskUpdateForm();
-        form.setTitle("admin updated");
-        form.setDescription("updated by admin");
-        form.setDueDate(java.time.LocalDate.now().plusDays(5));
-        form.setAssigneeId(20L);
-
-        // when
-        Task saved = taskService.updateFields(1L, form, "adminA", 999L, "ADMIN");
-
-        // then
-        assertEquals("admin updated", saved.getTitle());
-        assertEquals("updated by admin", saved.getDescription());
-        assertEquals(20L, saved.getAssigneeId());
-
-        verify(taskRepository, times(1)).save(existing);
-        verify(auditLogRepository, times(1)).save(any(AuditLog.class));
-    }
-
-    //① operate：USERが自分のタスク → OK
-    @Test
-    void operate_userCanOperateOwnTask() {
-        // given
-        Task t = mock(Task.class);
-
-        when(t.getAssigneeId()).thenReturn(10L);
-        when(t.getStatus()).thenReturn(TaskStatus.TODO, TaskStatus.IN_PROGRESS);
-
-        when(taskRepository.findById(1L)).thenReturn(Optional.of(t));
-        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        // when
-        taskService.changeStatus(1L, TaskOperation.START, "userA", 10L, "USER");
-
-        // then
-        verify(t, times(1)).apply(TaskOperation.START);
-        verify(taskRepository, times(1)).save(t);
-        verify(auditLogRepository, times(1)).save(any(AuditLog.class));
-    }
-
-    //② operate：USERが他人のタスク → 例外
-    @Test
-    void operate_userCannotOperateOthersTask() {
-        // given
-        Task t = mock(Task.class);
-
-        when(t.getAssigneeId()).thenReturn(20L); // 自分じゃない
-        when(taskRepository.findById(1L)).thenReturn(Optional.of(t));
+        /*
+         * changeStatus(COMPLETE)が呼ばれたら、
+         * 不正な状態遷移として例外を発生させる。
+         */
+        doThrow(new IllegalStateException("Invalid transition"))
+                .when(task)
+                .changeStatus(TaskOperation.COMPLETE);
 
         // when & then
-        assertThrows(IllegalStateException.class, () ->
-                taskService.changeStatus(1L, TaskOperation.START, "userA", 10L, "USER")
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> taskService.changeStatus(
+                        1L,
+                        TaskOperation.COMPLETE,
+                        "adminA",
+                        999L,
+                        "ADMIN"
+                )
         );
 
-        verify(t, never()).apply(any());
-        verify(taskRepository, never()).save(any());
-        verify(auditLogRepository, never()).save(any());
+        assertEquals(
+                "Invalid transition",
+                exception.getMessage()
+        );
+
+        // 状態変更に失敗したため保存されない
+        verify(taskRepository, never())
+                .save(any(Task.class));
+
+        verify(auditLogRepository, never())
+                .save(any(AuditLog.class));
     }
 
-    //③ operate：ADMINが他人のタスク → OK
     @Test
-    void operate_adminCanOperateOthersTask() {
+    void changeStatus_USERは自分のタスクを操作できる() {
         // given
-        Task t = mock(Task.class);
+        Task task = mock(Task.class);
 
-        when(t.getAssigneeId()).thenReturn(20L);
-        when(t.getStatus()).thenReturn(TaskStatus.TODO, TaskStatus.IN_PROGRESS);
+        when(task.getAssigneeId())
+                .thenReturn(10L);
 
-        when(taskRepository.findById(1L)).thenReturn(Optional.of(t));
-        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(task.getStatus())
+                .thenReturn(
+                        TaskStatus.TODO,
+                        TaskStatus.IN_PROGRESS
+                );
+
+        when(taskRepository.findById(1L))
+                .thenReturn(Optional.of(task));
+
+        when(taskRepository.save(any(Task.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         // when
-        taskService.changeStatus(1L, TaskOperation.START, "adminA", 999L, "ADMIN");
+        taskService.changeStatus(
+                1L,
+                TaskOperation.START,
+                "userA",
+                10L,
+                "USER"
+        );
 
         // then
-        verify(t, times(1)).apply(TaskOperation.START);
-        verify(taskRepository, times(1)).save(t);
-        verify(auditLogRepository, times(1)).save(any(AuditLog.class));
+        verify(task, times(1))
+                .changeStatus(TaskOperation.START);
+
+        verify(taskRepository, times(1))
+                .save(task);
+
+        verify(auditLogRepository, times(1))
+                .save(any(AuditLog.class));
     }
 
-    //④ delete：USERが自分のタスク → OK
     @Test
-    void delete_userCanDeleteOwnTask() {
+    void changeStatus_USERは他人のタスクを操作できない() {
         // given
-        Task t = new Task();
-        t.setAssigneeId(10L);
-        setIdByReflection(t, 1L);
+        Task task = mock(Task.class);
 
-        when(taskRepository.findById(1L)).thenReturn(Optional.of(t));
+        when(task.getAssigneeId())
+                .thenReturn(20L);
 
-        // when
-        taskService.delete(1L, "userA", 10L, "USER");
-
-        // then
-        verify(auditLogRepository, times(1)).save(any(AuditLog.class));
-        verify(taskRepository, times(1)).delete(t);
-    }
-
-    //⑤ delete：USERが他人のタスク → 例外
-    @Test
-    void delete_userCannotDeleteOthersTask() {
-        // given
-        Task t = new Task();
-        t.setAssigneeId(20L); // 自分じゃない
-
-        when(taskRepository.findById(1L)).thenReturn(Optional.of(t));
+        when(taskRepository.findById(1L))
+                .thenReturn(Optional.of(task));
 
         // when & then
-        assertThrows(IllegalStateException.class, () ->
-                taskService.delete(1L, "userA", 10L, "USER")
+        assertThrows(
+                IllegalStateException.class,
+                () -> taskService.changeStatus(
+                        1L,
+                        TaskOperation.START,
+                        "userA",
+                        10L,
+                        "USER"
+                )
         );
 
-        verify(taskRepository, never()).delete(any(Task.class));
-        verify(auditLogRepository, never()).save(any());
+        // 権限チェックで止まるので状態変更されない
+        verify(task, never())
+                .changeStatus(any(TaskOperation.class));
+
+        verify(taskRepository, never())
+                .save(any(Task.class));
+
+        verify(auditLogRepository, never())
+                .save(any(AuditLog.class));
     }
 
-    //⑥ delete：ADMINが他人のタスク → OK
     @Test
-    void delete_adminCanDeleteOthersTask() {
+    void changeStatus_ADMINは他人のタスクを操作できる() {
         // given
-        Task t = new Task();
-        t.setAssigneeId(20L);
-        setIdByReflection(t, 1L);
+        Task task = mock(Task.class);
 
-        when(taskRepository.findById(1L)).thenReturn(Optional.of(t));
+        when(task.getAssigneeId())
+                .thenReturn(20L);
+
+        when(task.getStatus())
+                .thenReturn(
+                        TaskStatus.TODO,
+                        TaskStatus.IN_PROGRESS
+                );
+
+        when(taskRepository.findById(1L))
+                .thenReturn(Optional.of(task));
+
+        when(taskRepository.save(any(Task.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         // when
-        taskService.delete(1L, "adminA", 999L, "ADMIN");
+        taskService.changeStatus(
+                1L,
+                TaskOperation.START,
+                "adminA",
+                999L,
+                "ADMIN"
+        );
 
         // then
-        verify(auditLogRepository, times(1)).save(any(AuditLog.class));
-        verify(taskRepository, times(1)).delete(t);
+        verify(task, times(1))
+                .changeStatus(TaskOperation.START);
+
+        verify(taskRepository, times(1))
+                .save(task);
+
+        verify(auditLogRepository, times(1))
+                .save(any(AuditLog.class));
+    }
+
+    // =========================================================
+    // delete
+    // =========================================================
+
+    @Test
+    void delete_ADMINは監査ログを記録してからタスクを削除する() {
+        // given
+        Task task = new Task();
+        task.setAssigneeId(20L);
+        setIdByReflection(task, 1L);
+
+        when(taskRepository.findById(1L))
+                .thenReturn(Optional.of(task));
+
+        // when
+        taskService.delete(
+                1L,
+                "adminA",
+                999L,
+                "ADMIN"
+        );
+
+        /*
+         * DELETE監査ログを保存した後に、
+         * Taskが物理削除されることを確認する。
+         */
+        InOrder order = inOrder(
+                auditLogRepository,
+                taskRepository
+        );
+
+        order.verify(auditLogRepository)
+                .save(any(AuditLog.class));
+
+        order.verify(taskRepository)
+                .delete(task);
+
+        ArgumentCaptor<AuditLog> auditCaptor =
+                ArgumentCaptor.forClass(AuditLog.class);
+
+        verify(auditLogRepository)
+                .save(auditCaptor.capture());
+
+        assertEquals(
+                AuditEventType.DELETE,
+                auditCaptor.getValue().getEventType()
+        );
+    }
+
+    @Test
+    void delete_USERは自分のタスクを削除できる() {
+        // given
+        Task task = new Task();
+        task.setAssigneeId(10L);
+        setIdByReflection(task, 1L);
+
+        when(taskRepository.findById(1L))
+                .thenReturn(Optional.of(task));
+
+        // when
+        taskService.delete(
+                1L,
+                "userA",
+                10L,
+                "USER"
+        );
+
+        // then
+        verify(auditLogRepository, times(1))
+                .save(any(AuditLog.class));
+
+        verify(taskRepository, times(1))
+                .delete(task);
+    }
+
+    @Test
+    void delete_USERは他人のタスクを削除できない() {
+        // given
+        Task task = new Task();
+        task.setAssigneeId(20L);
+        setIdByReflection(task, 1L);
+
+        when(taskRepository.findById(1L))
+                .thenReturn(Optional.of(task));
+
+        // when & then
+        assertThrows(
+                IllegalStateException.class,
+                () -> taskService.delete(
+                        1L,
+                        "userA",
+                        10L,
+                        "USER"
+                )
+        );
+
+        // 権限エラーなので監査ログも削除処理も実行されない
+        verify(auditLogRepository, never())
+                .save(any(AuditLog.class));
+
+        verify(taskRepository, never())
+                .delete(any(Task.class));
+    }
+
+    // =========================================================
+    // テスト補助メソッド
+    // =========================================================
+
+    /*
+     * Task.idには通常setterがないため、
+     * テスト内だけリフレクションで仮IDを設定する。
+     */
+    private static void setIdByReflection(Task task, Long id) {
+        try {
+            java.lang.reflect.Field field =
+                    Task.class.getDeclaredField("id");
+
+            field.setAccessible(true);
+            field.set(task, id);
+
+        } catch (NoSuchFieldException | IllegalAccessException exception) {
+            throw new RuntimeException(exception);
+        }
     }
 }
