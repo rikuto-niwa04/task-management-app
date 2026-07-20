@@ -1,0 +1,27 @@
+# Gradleの生成物
+.gradle
+build
+
+# Git
+.git
+.github
+
+# IDE
+.idea
+.vscode
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs
+
+# Environment files
+.env
+
+# Local files
+out
+bin
