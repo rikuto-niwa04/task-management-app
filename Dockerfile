@@ -9,6 +9,8 @@ WORKDIR /app
 COPY gradlew .
 COPY gradle gradle
 COPY build.gradle .
+
+
 COPY settings.gradle .
 
 # Windowsの改行コード対策と実行権限付与

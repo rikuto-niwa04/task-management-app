@@ -4,10 +4,9 @@ spring:
       on-profile: dev
 
   datasource:
-    url: jdbc:postgresql://dev-db:5432/taskdb
-    username: app
-    password: app
-
+    url: jdbc:postgresql://localhost:5433/task_management
+    username: postgres
+    password: postgres
 
   jpa:
     show-sql: false
